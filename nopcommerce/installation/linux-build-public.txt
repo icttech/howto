@@ -1,0 +1,413 @@
+
+Installation and basic config of NopCommerce 4.3 RC on Linux Debian 10 (Buster) with MySQL 8
+------------------------------------------------------------------------------------
+Jon Quick - 12/05/2020
+
+
+
+Documentation placeholders:
+
+<<LINUX-IP-ADDRESS>>
+<<LINUX-ROOT-PASSWORD>>
+<<SQL-ROOT-PASSWORD>>
+<<LINUX-ADMIN-ACCOUNTNAME>>
+<<LINUX-ADMIN-PASSWORD>>
+
+<<NOP-SQL-ACCOUNTNAME>>
+<<NOP-SQL-PASSWORD>>
+<<NOP-DATABASE-NAME>>
+<<NOP-ROOT-DIRECTORY>>
+
+
+<<NOP-WEBSITE-HOSTNAME>>  (hostname only, NOT including protocol http://.   for example nopcommerce.com    test.nopcommerce.com   dev.nopcommerce.com)
+
+<<NOP-ADMINUSER-EMAIL>>
+<<NOP-ADMINUSER-PASSWORD>>
+
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+//connect with Putty to Linux VPS with root account
+
+<<LINUX-IP-ADDRESS>>
+root
+<<LINUX-ROOT-PASSWORD>>
+
+
+
+
+//Install sudo
+
+apt-get install sudo
+
+
+//Create a new user for general admin (try not to use the root account for admin, unless absolutely necessary or specified in this document. Try to log in as new user and use sudo to elevate power)
+
+adduser <<LINUX-ADMIN-ACCOUNTNAME>>   (**lower case required?**)
+
+//set password when prompted
+<<LINUX-ADMIN-PASSWORD>>
+
+//Add new user to sudo group
+
+/sbin/adduser <<LINUX-ADMIN-ACCOUNTNAME>> sudo
+ 
+ 
+ 
+//DISCONNECT FROM VPS with Putty as root
+
+
+//RECONNECT with Putty as  <<LINUX-ADMIN-ACCOUNTNAME>>   (**Try and use not root account for Putty remote access**)
+
+ 
+//Force lowercase-table-names for mysql  (this is not necessary for nopCommerce, but is for other .NET applications using the EF Core framework )
+// run the full command on the next line
+ 
+sudo debconf-set-selections <<< "mysql-server mysql-server/lowercase-table-names select Enabled"
+ 
+//Install MySQL 8 
+ 
+ 
+sudo apt update
+ 
+sudo apt install gnupg
+ 
+cd /tmp
+ 
+wget https://dev.mysql.com/get/mysql-apt-config_0.8.15-1_all.deb
+ 
+sudo dpkg -i mysql-apt-config*
+ 
+//Select just MySQL 8.0)
+ 
+sudo apt update
+ 
+sudo apt install mysql-server
+ 
+//set the root password for mysql = <<SQL-ROOT-PASSWORD>>
+ 
+//use strong password settings
+ 
+//Check mysql is running OK
+ 
+sudo systemctl status mysql  
+
+//CTRL-C to quit status monitor
+ 
+//Secure mySQL. Password strength policy, disallow remote login with root etc...
+ 
+mysql_secure_installation
+ 
+ 
+ 
+//Install NGINX web server
+  
+sudo apt update
+ 
+sudo apt install nginx
+ 
+//check Nginx service is running
+ 
+systemctl status nginx
+ 
+ 
+//Install Uncomplicated Firewall (UFW)
+  
+sudo apt install ufw
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+ 
+//allow SSH.. don't lock yourself out remotely!
+
+sudo ufw allow ssh
+sudo ufw enable
+ 
+//Allow Nginx http/https trafffic in through UFW)
+sudo ufw allow 'Nginx Full'
+ 
+//check UFW status)
+sudo ufw status
+ 
+//Install .NET Core Runtime
+ 
+ // (follow the MS documentaton for your the correct package manager solution for you Operating system. In this case, Debian 10)
+https://docs.microsoft.com/en-gb/dotnet/core/install/linux-package-manager-debian10
+ 
+ 
+//Install the ASP.NET Core runtime 3.1
+ 
+wget -O - https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.asc.gpg
+sudo mv microsoft.asc.gpg /etc/apt/trusted.gpg.d/
+wget https://packages.microsoft.com/config/debian/10/prod.list
+sudo mv prod.list /etc/apt/sources.list.d/microsoft-prod.list
+sudo chown root:root /etc/apt/trusted.gpg.d/microsoft.asc.gpg
+sudo chown root:root /etc/apt/sources.list.d/microsoft-prod.list
+ 
+sudo apt-get update
+sudo apt-get install apt-transport-https
+sudo apt-get update
+sudo apt-get install aspnetcore-runtime-3.1
+ 
+//check installed OK
+dotnet --list-runtimes
+ 
+ 
+//Create empty nopCommerce database
+
+ 
+mysql -u root -p     
+
+//enter mysql root password <<SQL-ROOT-PASSWORD>>
+
+//(at mysql> prompt)
+ 
+		CREATE DATABASE <<NOP-DATABASE-NAME>>;
+ 
+		//(response will be something like Query OK, 1 row affected (0.20 sec)
+		
+		
+		//Create a SQL user called nopwebapp to connect to sql
+ 
+		CREATE USER '<<NOP-SQL-ACCOUNTNAME>>'@'localhost' IDENTIFIED BY '<<NOP-SQL-PASSWORD>>';
+ 
+		//(response will be something like Query OK, 0 row affected (0.20 sec)
+		
+		//Grant persmissions for the new user
+ 
+		GRANT ALL ON <<NOP-DATABASE-NAME>>.* TO '<<NOP-SQL-ACCOUNTNAME>>'@'localhost';
+ 
+ 
+ 
+		 //(the following setting is required to avoid error below when you configure nopcommerce, as the new user nopwebapp does not have SUPER privilege:
+		 
+		 //"Error during nopCommerce setup: You do not have the SUPER privilege and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)"
+		 
+		 //)
+		 
+		 
+		 set global log_bin_trust_function_creators=1;
+		 
+		 
+		 //exit mySQL admin
+		 quit
+ 
+ 
+ 
+ 
+ 
+//Create nopcommerce directory called <<NOP-ROOT-DIRECTORY>>
+  
+cd /var
+ls
+cd /www
+ls
+sudo mkdir <<NOP-ROOT-DIRECTORY>>
+ 
+ 
+ 
+//******* WinSCP COPY OPERATION BELOW REQUIRES ROOT ACCESS - AS I COULD NOT WORK OUT PERMISSIONS REQUIRED TO COPY AS <<LINUX-ADMIN-ACCOUNTNAME>> ****
+ 
+//Copy across from local dev machine, nopCommerce published code
+//using winSCP logged in as root, copy across nopcommerce published folder , as zip (I've named it publish.zip) 
+ 
+ 
+//Back to Putty session logged in as <<LINUX-ADMIN-ACCOUNTNAME>> unzip published code on linux VPS
+ 
+cd /<<NOP-ROOT-DIRECTORY>>
+sudo unzip publish.zip
+sudo rm publish.zip
+ 
+ 
+//make some nopcommerce directories needed (which are not done automatically)
+ 
+sudo mkdir bin
+sudo mkdir logs
+ 
+//set correct permissions for www-data
+ 
+cd ..
+ 
+//(you should be a the www directory level before execting the 2 commands below..)
+ 
+sudo chgrp -R www-data <<NOP-ROOT-DIRECTORY>>
+sudo chown -R www-data <<NOP-ROOT-DIRECTORY>>
+ 
+ 
+ 
+  
+ 
+//run .net core webapp from command line to test. Check the console output for any signs of run time errors (usually file permissions related)
+
+cd /<<NOP-ROOT-DIRECTORY>> 
+sudo dotnet Nop.Web.dll
+ 
+CTRL+C to quit app
+
+
+
+// Create the linux service to run the webapp automatically. Give it any name. Here we call it nopcommerce.service
+ 
+ 
+//******* WinSCP FILE OPERATIONs BELOW REQUIRES ROOT ACCESS - AS I COULD NOT WORK OUT PERMISSIONS REQUIRED TO EDIT/CREATE FILE AS <<LINUX-ADMIN-ACCOUNTNAME>> ****
+//** WinSCP is very handy for file creating/editing on Linux i find *** 
+
+//(Using WinSCP connected as root, Create the /etc/systemd/system/nopcommerce.service file with the following contents:)
+ 
+[Unit]
+Description=nopCommerce web app running on Debian 10
+
+[Service]
+WorkingDirectory=/var/www/<<NOP-ROOT-DIRECTORY>>
+ExecStart=/usr/bin/dotnet /var/www/<<NOP-ROOT-DIRECTORY>>/Nop.Web.dll
+Restart=always
+# Restart service after 10 seconds if the dotnet service crashes:
+RestartSec=10
+KillSignal=SIGINT
+SyslogIdentifier=nopCommerce-webapp
+User=www-data
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
+After=mysql.service
+
+[Install]
+WantedBy=multi-user.target
+
+
+
+
+
+
+
+
+
+//start the service
+
+sudo systemctl start nopcommerce.service
+
+//check service status
+
+sudo systemctl status nopcommerce.service
+
+
+//Enable to auto-start with OS reboot
+
+sudo systemctl enable nopcommerce.service
+ 
+ 
+ 
+ 
+ 
+ //Create NGinx virtual server - for reverse proxy of incoming http requests to your nopCommerce .net core web app
+
+
+//******* WinSCP FILE OPERATIONs BELOW REQUIRES ROOT ACCESS - AS I COULD NOT WORK OUT PERMISSIONS REQUIRED TO EDIT/CREATE FILE AS <<LINUX-ADMIN-ACCOUNTNAME>> ****
+//** WinSCP is very handy for file creating/editing on Linux i find ***
+
+//Using WinScp connected as root, add the following section to the bottom of  /etc/nginx/sites-available/default   (insert your public URL for your website where appropiate)
+
+//** NOTE: proxy_pass http://localhost:5000; assumes your nopcommerce .NET Core web app is listening on the default port 5000. To run multiple instances side-by-side, each instance will need to be configured to listen on different port numbers**
+
+
+# NopCommerce virtual server configuration 
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name   <<NOP-WEBSITE-HOSTNAME>>;
+
+    location / {
+    proxy_pass         http://localhost:5000;
+    proxy_http_version 1.1;
+    proxy_set_header   Upgrade $http_upgrade;
+    proxy_set_header   Connection keep-alive;
+    proxy_set_header   Host $host;
+    proxy_cache_bypass $http_upgrade;
+    proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+
+    # SSL configuration
+    #
+    # listen 443 ssl default_server;
+    # listen [::]:443 ssl default_server;
+    #
+    # Note: You should disable gzip for SSL traffic.
+    # See: https://bugs.debian.org/773332
+    #
+    # Read up on ssl_ciphers to ensure a secure configuration.
+    # See: https://bugs.debian.org/765782
+    #
+    # Self signed certs generated by the ssl-cert package
+    # Don't use them in a production server!
+    #
+    # include snippets/snakeoil.conf;
+}
+
+
+
+
+
+
+
+
+
+//reload nginx config and restart nginx
+
+
+sudo systemctl reload nginx
+sudo systemctl restart nginx
+
+ 
+//from  your web browser, go to http://<<NOP-WEBSITE-HOSTNAME>>
+ 
+//you should redirect to http://<<NOP-WEBSITE-HOSTNAME>>/install and get the NopCommerce setup page
+ 
+//Configure store setup
+ 
+store username = <<NOP-ADMINUSER-EMAIL>>
+store password = <<NOP-ADMINUSER-PASSWORD>>
+ 
+create sample data = yes/no
+ 
+database = mySql
+
+create database if it does not exists = true
+
+servername = localhost
+
+database = <<NOP-DATABASE-NAME>>
+
+SQL user name = <<NOP-SQL-ACCOUNTNAME>>
+
+SQL password = <<NOP-SQL-PASSWORD>>
+
+
+//click install, wait for background setup to complete....
+
+//Webapp will STOP with 502 Bad Gateway error from NGinx. DONT PANIC! Leave for a few minutes. The Nop Web App is still running some background processes to seed data in the new DB. Wait a few mins and then refresh browser. Website will be up.
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+
