@@ -1,6 +1,6 @@
 
-Installation and basic config of NopCommerce 4.40.03 RC on Linux Ubuntu 20.04LTS with MySQL 8 .NET 5.0
-------------------------------------------------------------------------------------------------------
+Installation and basic config of NopCommerce 4.40.03 RC on Linux Ubuntu 20.04LTS with MySQL 8 & .NET 5.0
+--------------------------------------------------------------------------------------------------------
 Jon Quick - 12/05/2020
 bayden10 - 21/06/2021
 
