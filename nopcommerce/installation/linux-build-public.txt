@@ -1,6 +1,6 @@
 
-Installation and basic config of NopCommerce 4.3 RC on Linux Ubuntu 20.04LTS with MySQL 8
------------------------------------------------------------------------------------------
+Installation and basic config of NopCommerce 4.40.03 RC on Linux Ubuntu 20.04LTS with MySQL 8 .NET 5.0
+------------------------------------------------------------------------------------------------------
 Jon Quick - 12/05/2020
 bayden10 - 21/06/2021
 
@@ -114,6 +114,7 @@ systemctl status nginx
 
  
 //Install certbot with snapd SSL Cert and apply to nginx on clean host
+https://certbot.eff.org/lets-encrypt/ubuntufocal-nginx.html
 
 //Ensure that your version of snapd is up to date  
 sudo snap install core; sudo snap refresh core
@@ -152,24 +153,29 @@ sudo ufw status
 //Install .NET Core Runtime
  
  // (follow the MS documentaton for your the correct package manager solution for you Operating system. In this case, Debian 10)
-https://docs.microsoft.com/en-gb/dotnet/core/install/linux-package-manager-debian10
+https://docs.microsoft.com/en-gb/dotnet/core/install/linux-ubuntu#2004-
  
  
-//Install the ASP.NET Core runtime 3.1
- 
-wget -O - https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.asc.gpg
-sudo mv microsoft.asc.gpg /etc/apt/trusted.gpg.d/
-wget https://packages.microsoft.com/config/debian/10/prod.list
-sudo mv prod.list /etc/apt/sources.list.d/microsoft-prod.list
-sudo chown root:root /etc/apt/trusted.gpg.d/microsoft.asc.gpg
-sudo chown root:root /etc/apt/sources.list.d/microsoft-prod.list
- 
+//Install the ASP.NET Core runtime 5.0
+
+//Add the Microsoft package signing key to your list of trusted keys and add the package repository
+wget https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+sudo dpkg -i packages-microsoft-prod.deb
+
+//Install the SDK
 sudo apt-get update
-sudo apt-get install apt-transport-https
+sudo apt-get install -y apt-transport-https
 sudo apt-get update
-sudo apt-get install aspnetcore-runtime-3.1
- 
-//check installed OK
+sudo apt-get install -y dotnet-sdk-5.0
+
+//Install the runtime
+sudo apt-get update
+sudo apt-get install -y apt-transport-https
+sudo apt-get update
+sudo apt-get install -y aspnetcore-runtime-5.0
+
+//Check .NET SDKS and Runtime versions
+dotnet --list-sdks
 dotnet --list-runtimes
  
  
