@@ -1,7 +1,8 @@
 
-Installation and basic config of NopCommerce 4.3 RC on Linux Debian 10 (Buster) with MySQL 8
-------------------------------------------------------------------------------------
+Installation and basic config of NopCommerce 4.3 RC on Linux Ubuntu 20.04LTS with MySQL 8
+-----------------------------------------------------------------------------------------
 Jon Quick - 12/05/2020
+bayden10 - 21/06/2021
 
 
 
@@ -98,9 +99,9 @@ sudo systemctl status mysql
 //Secure mySQL. Password strength policy, disallow remote login with root etc...
  
 mysql_secure_installation
- 
- 
- 
+
+
+
 //Install NGINX web server
   
 sudo apt update
@@ -110,6 +111,25 @@ sudo apt install nginx
 //check Nginx service is running
  
 systemctl status nginx
+
+ 
+//Install certbot with snapd SSL Cert and apply to nginx on clean host
+
+//Ensure that your version of snapd is up to date  
+sudo snap install core; sudo snap refresh core
+
+//Install Certbot
+
+sudo snap install --classic certbot
+
+//Prepare the Certbot command 
+sudo ln -s /snap/bin/certbot /usr/bin/certbot
+
+//Get a certificate and have Certbot edit your Nginx configuration automatically to serve it, turning on HTTPS access in a single step. 
+sudo certbot --nginx
+
+//You can test automatic renewal for your certificates by running this command.
+sudo certbot renew --dry-run
  
  
 //Install Uncomplicated Firewall (UFW)
